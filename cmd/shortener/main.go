@@ -10,8 +10,8 @@ import (
 
 func main() {
 	router := mux.NewRouter()
-	router.HandleFunc("/POST/", handlers.BodyHandler)
-	router.HandleFunc("/GET/{id}", handlers.QueryHandler)
+	router.HandleFunc("/", handlers.BodyHandler)
+	router.HandleFunc("/{id}", handlers.QueryHandler)
 	http.Handle("/", router)
 	// запуск сервера с адресом localhost, порт 8080
 	http.ListenAndServe(":8080", nil)
