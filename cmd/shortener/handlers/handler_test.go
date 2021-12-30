@@ -10,7 +10,10 @@ import (
 	"github.com/Fedorova199/red-cat/cmd/shortener/handlers"
 )
 
+var u = handlers.NewUrl()
+
 func TestQueryHandler(t *testing.T) {
+
 	type want struct {
 		code        int
 		response    string
@@ -26,20 +29,21 @@ func TestQueryHandler(t *testing.T) {
 			name: "positive test #1",
 			want: want{
 				code:        307,
-				response:    "https://practicum.yandex.ru/learn/go-developer/",
-				contentType: "text/html; charset=UTF-8",
+				response:    "",
+				contentType: "text/plain; charset=utf-8",
 			},
 		},
 	}
 	for _, tt := range tests {
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodGet, "/GET/quvery", nil)
+
+			request := httptest.NewRequest(http.MethodGet, "/1", nil)
 
 			// создаём новый Recorder
 			w := httptest.NewRecorder()
 			// определяем хендлер
-			h := http.HandlerFunc(handlers.QueryHandler)
+			h := http.HandlerFunc(u.QueryHandler)
 			// запускаем сервер
 			h.ServeHTTP(w, request)
 			res := w.Result()
@@ -80,24 +84,24 @@ func TestBodyHandler(t *testing.T) {
 	}{
 		// определяем все тесты
 		{
-			name: "positive test #1",
+			name: "positive test #2",
 			want: want{
 				code:        201,
-				response:    "http://localhost:8080/quvery",
-				contentType: "text/html; charset=UTF-8",
+				response:    "http://localhost:8080/1",
+				contentType: "text/plain; charset=utf-8",
 			},
 		},
 	}
 	for _, tt := range tests {
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
-			var body = []byte("https://practicum.yandex.ru/learn/go-developer/")
-			request := httptest.NewRequest(http.MethodPost, "/POST/", bytes.NewBuffer(body))
+			var body = []byte("https://practicum.yandex.ru/")
+			request := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer(body))
 
 			// создаём новый Recorder
 			w := httptest.NewRecorder()
 			// определяем хендлер
-			h := http.HandlerFunc(handlers.BodyHandler)
+			h := http.HandlerFunc(u.BodyHandler)
 			// запускаем сервер
 			h.ServeHTTP(w, request)
 			res := w.Result()

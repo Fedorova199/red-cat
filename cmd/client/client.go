@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,10 +11,11 @@ import (
 
 func ClientGet() {
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", "http://localhost:8080/999", nil)
+	req, err := http.NewRequest("GET", "http://localhost:8080/1", nil)
 	if err != nil {
 		fmt.Println(err)
 	}
+
 	res, err := client.Do(req)
 	if err != nil {
 		fmt.Println(err)
@@ -26,8 +28,8 @@ func ClientGet() {
 		os.Exit(1)
 	}
 	defer res.Body.Close()
-	fmt.Println(string(body[0:1]))
-	fmt.Println("Header", res.Header.Get("Location"))
+	fmt.Println("BODY", string(body[0:1]))
+	fmt.Println("Header", res.Header)
 	// печатаем код ответа
 	fmt.Println("Статус-кодGET ", res.StatusCode)
 
@@ -40,6 +42,13 @@ func ClientPost() {
 	if err != nil {
 		fmt.Println(err)
 	}
+	request.Header.Set("Content-Type", "text/plain; charset=utf-8")
+	client.CheckRedirect = func(request *http.Request, via []*http.Request) error {
+		if len(via) >= 2 {
+			return errors.New("Остановлено после двух Redirect")
+		}
+		return nil
+	}
 	response, err := client.Do(request)
 	if err != nil {
 		fmt.Println(err)
@@ -50,6 +59,7 @@ func ClientPost() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
 	fmt.Println(string(body))
 	fmt.Println(response.Header)
 	// печатаем код ответа
