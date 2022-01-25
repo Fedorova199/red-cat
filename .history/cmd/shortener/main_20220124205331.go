@@ -1,4 +1,5 @@
 package main
+package main
 
 import (
 	"context"
@@ -7,10 +8,10 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/Fedorova199/red-cat/internal/config"
-	"github.com/Fedorova199/red-cat/internal/server"
-	"github.com/Fedorova199/red-cat/internal/services"
-	"github.com/Fedorova199/red-cat/internal/storage"
+	"github.com/zueve/go-shortener/internal/config"
+	"github.com/zueve/go-shortener/internal/server"
+	"github.com/zueve/go-shortener/internal/services"
+	"github.com/zueve/go-shortener/internal/storage"
 )
 
 func main() {
