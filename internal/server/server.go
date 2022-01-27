@@ -37,6 +37,7 @@ func New(ctx *config.Context, service services.Service) Server {
 }
 
 func (s *Server) ListenAndServe() {
+	fmt.Println(s.srv)
 	s.srv.ListenAndServe()
 }
 
