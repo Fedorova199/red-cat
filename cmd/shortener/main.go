@@ -14,12 +14,29 @@ import (
 )
 
 func main() {
-	ctx := config.NewContextFromEnvAndCMD()
-	persistentStorage := storage.NewFileStorage(ctx.FileStoragePath)
+	conf, err := config.NewFromEnvAndCMD()
+	if err != nil {
+		panic(err)
+	}
+	persistentStorage, err := storage.NewFileStorage(conf.FileStoragePath)
+	if err != nil {
+		panic(err)
+	}
 	defer persistentStorage.Close()
-	storageVar := storage.New(persistentStorage)
+	storageVar, err := storage.New(persistentStorage)
+	if err != nil {
+		panic(err)
+	}
 	serviceVar := services.New(storageVar)
-	serverVar := server.New(ctx, serviceVar)
+	serverVar, err := server.New(
+		serviceVar,
+		server.WithAddress(conf.ServerAddress),
+		server.WithURL(conf.BaseURL),
+	)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Started at", conf.ServerAddress)
 	go serverVar.ListenAndServe()
 
 	// Setting up signal capturing
@@ -29,9 +46,9 @@ func main() {
 	// Waiting for SIGINT (kill -2)
 	<-stop
 
-	ctx2, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if err := serverVar.Shutdown(ctx2); err != nil {
+	if err := serverVar.Shutdown(ctx); err != nil {
 		panic("unexpected err on graceful shutdown")
 	}
 	fmt.Println("main: done. exiting")
