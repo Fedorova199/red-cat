@@ -1,4 +1,4 @@
-package server
+package middlewares
 
 import (
 	"compress/gzip"
@@ -12,17 +12,14 @@ type gzipWriter struct {
 	Writer io.Writer
 }
 
-type gzipReader struct {
-	http.Request
-	Reader io.Reader
-}
-
 func (w gzipWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
 }
 
-func gzipHandle(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+type GzipEncoder struct{}
+
+func (g GzipEncoder) Handle(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 			next.ServeHTTP(w, r)
 			return
@@ -37,21 +34,27 @@ func gzipHandle(next http.Handler) http.Handler {
 
 		w.Header().Set("Content-Encoding", "gzip")
 		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gz}, r)
-	})
+	}
 }
 
-func ungzipHandle(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
+type GzipDecoder struct{}
+
+func (g GzipDecoder) Handle(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Content-Encoding") != "gzip" {
 			next.ServeHTTP(w, r)
 			return
 		}
+
 		gz, err := gzip.NewReader(r.Body)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			io.WriteString(w, err.Error())
 			return
 		}
+		defer gz.Close()
+
 		r.Body = gz
+
 		next.ServeHTTP(w, r)
-	})
+	}
 }
