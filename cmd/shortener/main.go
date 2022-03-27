@@ -32,12 +32,11 @@ func main() {
 		middlewares.UngzipHandle{},
 		middlewares.NewAuthenticator([]byte("secret key")),
 	}
-	handler := handlers.NewHandler(storage, cfg.BaseURL, ms, db)
+	handler := handlers.NewHandler(storage, cfg.BaseURL, ms)
 	server := &http.Server{
 		Addr:    cfg.ServerAddress,
 		Handler: handler,
 	}
-
 	c := make(chan os.Signal, 1)
 	signal.Notify(c,
 		syscall.SIGHUP,

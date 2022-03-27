@@ -32,7 +32,7 @@ func TestHandler_POSTHandler(t *testing.T) {
 		name    string
 		path    string
 		body    string
-		storage storage.Storage
+		storage Storage
 		want    want
 	}{
 		{
@@ -93,7 +93,7 @@ func TestHandler_POSTHandler(t *testing.T) {
 				middlewares.GzipHandle{},
 				middlewares.UngzipHandle{},
 				middlewares.NewAuthenticator([]byte("secret key")),
-			}, nil)
+			})
 			ts := httptest.NewServer(handler)
 			defer ts.Close()
 
@@ -122,7 +122,7 @@ func TestHandler_GETHandler(t *testing.T) {
 	tests := []struct {
 		name    string
 		path    string
-		storage storage.Storage
+		storage Storage
 		want    want
 	}{
 		{
@@ -170,7 +170,7 @@ func TestHandler_GETHandler(t *testing.T) {
 			},
 			want: want{
 				contentType: "text/plain; charset=utf-8",
-				statusCode:  500,
+				statusCode:  404,
 				redirectURL: "",
 			},
 			path: "/1009",
@@ -207,7 +207,7 @@ func TestHandler_GETHandler(t *testing.T) {
 				middlewares.GzipHandle{},
 				middlewares.UngzipHandle{},
 				middlewares.NewAuthenticator([]byte("secret key")),
-			}, nil)
+			})
 			ts := httptest.NewServer(handler)
 			defer ts.Close()
 
@@ -237,7 +237,7 @@ func TestHandler_JSONHandler(t *testing.T) {
 		name    string
 		path    string
 		body    string
-		storage storage.Storage
+		storage Storage
 		want    want
 	}{
 		{
@@ -312,7 +312,7 @@ func TestHandler_JSONHandler(t *testing.T) {
 			},
 			want: want{
 				contentType: "text/plain; charset=utf-8",
-				statusCode:  500,
+				statusCode:  400,
 				id:          "",
 			},
 			path: "/api/shorten",
@@ -325,7 +325,7 @@ func TestHandler_JSONHandler(t *testing.T) {
 				middlewares.GzipHandle{},
 				middlewares.UngzipHandle{},
 				middlewares.NewAuthenticator([]byte("secret key")),
-			}, nil)
+			})
 			ts := httptest.NewServer(handler)
 			defer ts.Close()
 
@@ -358,7 +358,8 @@ func TestNewHandler(t *testing.T) {
 	handler := NewHandler(storage, "test.ru", []Middleware{
 		middlewares.GzipHandle{},
 		middlewares.UngzipHandle{},
-	}, nil)
+		middlewares.NewAuthenticator([]byte("secret key")),
+	})
 	assert.Implements(t, (*http.Handler)(nil), handler)
 }
 
