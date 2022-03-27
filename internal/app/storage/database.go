@@ -23,7 +23,7 @@ func CreateDatabase(db *sql.DB) (*Database, error) {
 }
 
 func (s *Database) init() error {
-	_, err := s.db.Exec("CREATE TABLE IF NOT EXISTS urls ( id bigserial primary key, user_id varchar(36), origin_url varchar(255), CONSTRAINT origin_url_unique UNIQUE (origin_url) )")
+	_, err := s.db.Exec("CREATE TABLE IF NOT EXISTS url ( id bigserial primary key, user_id varchar(36), origin_url varchar(255), CONSTRAINT origin_url_unique UNIQUE (origin_url) )")
 
 	return err
 }
