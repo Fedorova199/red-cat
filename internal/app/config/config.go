@@ -31,7 +31,6 @@ func NewConfig() (Config, error) {
 	return conf, err
 }
 
-//
 func (conf *Config) parseFlags() {
 
 	flag.StringVar(&conf.ServerAddress, "a", defaultServerAddress, "network address the server listens on")
