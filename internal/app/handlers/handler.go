@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/Fedorova199/red-cat/internal/app/middlewares"
 	"github.com/Fedorova199/red-cat/internal/app/storage"
 	"github.com/go-chi/chi/v5"
 )
@@ -31,6 +32,8 @@ func NewHandler(storage storage.Storage, baseURL string) *Handler {
 		Storage: storage,
 		BaseURL: baseURL,
 	}
+	router.Use(middlewares.GzipHandle)
+	router.Use(middlewares.UngzipHandle)
 	router.Post("/", router.POSTHandler)
 	router.Post("/api/shorten", router.JSONHandler)
 	router.Get("/{id}", router.GETHandler)
