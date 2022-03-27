@@ -9,6 +9,7 @@ import (
 
 	"github.com/Fedorova199/red-cat/internal/app/config"
 	"github.com/Fedorova199/red-cat/internal/app/handlers"
+	"github.com/Fedorova199/red-cat/internal/app/middlewares"
 	"github.com/Fedorova199/red-cat/internal/app/storage"
 	_ "github.com/jackc/pgx/v4/stdlib"
 )
@@ -16,12 +17,16 @@ import (
 func main() {
 	cfg, _ := config.NewConfig()
 
-	storage, err := storage.NewModels(cfg.FileStoragePath, 5)
+	storage, err := storage.NewModels(cfg.FileStoragePath, 1)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	handler := handlers.NewHandler(storage, cfg.BaseURL)
+	ms := []handlers.Middleware{
+		middlewares.GzipHandle{},
+		middlewares.UngzipHandle{},
+		middlewares.NewAuthenticator([]byte("secret key")),
+	}
+	handler := handlers.NewHandler(storage, cfg.BaseURL, ms)
 	server := &http.Server{
 		Addr:    cfg.ServerAddress,
 		Handler: handler,

@@ -10,12 +10,13 @@ import (
 )
 
 type Storage interface {
-	Get(id int) (string, error)
-	Set(data string) (int, error)
+	Get(id int) (CreateURL, error)
+	Set(user, url string) (int, error)
+	GetByUser(userID string) ([]CreateURL, error)
 }
 
 type Models struct {
-	Model   map[int]string
+	Model   map[int]CreateURL
 	Counter int
 	File    *os.File
 	ticker  *time.Ticker
@@ -23,8 +24,9 @@ type Models struct {
 }
 
 type CreateURL struct {
-	ID  int
-	URL string
+	ID   int
+	URL  string
+	User string
 }
 
 func NewModels(filename string, syncTime int) (*Models, error) {
@@ -54,9 +56,9 @@ func NewModels(filename string, syncTime int) (*Models, error) {
 	return modelStor, nil
 }
 
-func loadFile(file *os.File) (int, map[int]string, error) {
-	var lastID int = 0
-	var urls = make(map[int]string)
+func loadFile(file *os.File) (int, map[int]CreateURL, error) {
+	var lastID = 0
+	var urls = make(map[int]CreateURL)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		data := scanner.Bytes()
@@ -71,7 +73,7 @@ func loadFile(file *os.File) (int, map[int]string, error) {
 			lastID = createURL.ID
 		}
 
-		urls[createURL.ID] = createURL.URL
+		urls[createURL.ID] = createURL
 	}
 
 	return lastID, urls, nil
@@ -91,21 +93,39 @@ func (md *Models) synchronize() {
 	}
 }
 
-func (md *Models) Get(id int) (string, error) {
+func (md *Models) Get(id int) (CreateURL, error) {
 	if url, ok := md.Model[id]; ok {
 		return url, nil
 	}
 
-	return "", fmt.Errorf("id %d have not found", id)
+	return CreateURL{}, fmt.Errorf("id %d have not found", id)
 }
 
-func (md *Models) Set(url string) (int, error) {
+func (md *Models) Set(user, url string) (int, error) {
 	id := md.Counter
 	md.Counter++
 
-	md.Model[id] = url
+	md.Model[id] = CreateURL{
+		ID:   id,
+		User: user,
+		URL:  url,
+	}
 
 	return id, nil
+}
+
+func (md *Models) GetByUser(userID string) ([]CreateURL, error) {
+	arrUsers := make([]CreateURL, 0)
+
+	for _, val := range md.Model {
+		if val.User == userID {
+			arrUsers = append(arrUsers, val)
+		}
+	}
+	if len(arrUsers) == 0 {
+		return nil, fmt.Errorf("arrUsers with user_id %s have not found", userID)
+	}
+	return arrUsers, nil
 }
 
 func (md *Models) Close() error {
@@ -131,11 +151,8 @@ func (md *Models) UpdateFile() error {
 		return err
 	}
 
-	for ID, URL := range md.Model {
-		err := md.WriteCreateURLFile(CreateURL{
-			ID:  ID,
-			URL: URL,
-		})
+	for _, val := range md.Model {
+		err := md.WriteCreateURLFile(val)
 
 		if err != nil {
 			return err
