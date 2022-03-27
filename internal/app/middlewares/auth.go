@@ -11,24 +11,24 @@ import (
 )
 
 type Auth struct {
-	secret []byte
+	secretKey []byte
 }
 
-func NewAuthenticator(secret []byte) *Auth {
-	return &Auth{secret: secret}
+func NewAuth(secret []byte) *Auth {
+	return &Auth{secretKey: secret}
 }
 
 func (a Auth) Handle(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userCookie, userErr := r.Cookie("user_id")
+		idCookie, userErr := r.Cookie("user_id")
 		signCookie, signErr := r.Cookie("sign")
 
 		if userErr != nil || signErr != nil {
 			newUserID, sign, _ := a.generateUserID()
 			a.setCookies(w, r, newUserID, sign)
 		} else {
-			h := hmac.New(sha256.New, a.secret)
-			h.Write([]byte(userCookie.Value))
+			h := hmac.New(sha256.New, a.secretKey)
+			h.Write([]byte(idCookie.Value))
 			calculatedSign := h.Sum(nil)
 			sign, err := hex.DecodeString(signCookie.Value)
 			if err != nil {
@@ -49,7 +49,7 @@ func (a Auth) Handle(next http.HandlerFunc) http.HandlerFunc {
 func (a Auth) generateUserID() (string, string, error) {
 	newUserID := uuid.New().String()
 
-	h := hmac.New(sha256.New, a.secret)
+	h := hmac.New(sha256.New, a.secretKey)
 	_, err := h.Write([]byte(newUserID))
 
 	if err != nil {

@@ -11,24 +11,11 @@ import (
 )
 
 type Models struct {
-	Model   map[int]CreateURL
 	Counter int
+	Model   map[int]CreateURL
 	File    *os.File
 	ticker  *time.Ticker
 	done    chan bool
-}
-
-type CreateURL struct {
-	ID   int
-	URL  string
-	User string
-}
-
-type ShortenBatch struct {
-	ID            uint64
-	User          string
-	URL           string
-	CorrelationID string
 }
 
 func NewModels(filename string, syncTime int) (*Models, error) {
@@ -38,28 +25,28 @@ func NewModels(filename string, syncTime int) (*Models, error) {
 		return nil, err
 	}
 
-	lastID, urls, err := loadFile(file)
+	lastID, model, err := CreateDataFile(file)
 	if err != nil {
 		return nil, err
 	}
 
 	ticker := time.NewTicker(time.Duration(syncTime) * time.Minute)
 	done := make(chan bool)
-	modelStor := &Models{
-		Model:   urls,
+	simpleStorage := &Models{
 		Counter: lastID + 1,
+		Model:   model,
 		File:    file,
 		ticker:  ticker,
 		done:    done,
 	}
 
-	go modelStor.synchronize()
+	go simpleStorage.synchronize()
 
-	return modelStor, nil
+	return simpleStorage, nil
 }
 
-func loadFile(file *os.File) (int, map[int]CreateURL, error) {
-	var lastID = 0
+func CreateDataFile(file *os.File) (int, map[int]CreateURL, error) {
+	lastID := 0
 	var urls = make(map[int]CreateURL)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -87,7 +74,7 @@ func (md *Models) synchronize() {
 		case <-md.done:
 			return
 		case <-md.ticker.C:
-			err := md.UpdateFile()
+			err := md.updateDataFile()
 			if err != nil {
 				return
 			}
@@ -95,51 +82,53 @@ func (md *Models) synchronize() {
 	}
 }
 
-func (md *Models) GetByOriginURL(ctx context.Context, originURL string) (CreateURL, error) {
-	for _, model := range md.Model {
-		if model.URL == originURL {
-			return model, nil
+func (md *Models) Get(ctx context.Context, id int) (CreateURL, error) {
+	if createURL, ok := md.Model[id]; ok {
+		return createURL, nil
+	}
+
+	return CreateURL{}, fmt.Errorf("id %d have not found", id)
+}
+
+func (md *Models) GetOriginURL(ctx context.Context, originURL string) (CreateURL, error) {
+	for _, createURL := range md.Model {
+		if createURL.URL == originURL {
+			return createURL, nil
 		}
 	}
 
 	return CreateURL{}, fmt.Errorf("originURL %s have not found", originURL)
 }
 
-func (md *Models) Get(tx context.Context, id int) (CreateURL, error) {
-	if model, ok := md.Model[id]; ok {
-		return model, nil
-	}
+func (md *Models) GetUser(ctx context.Context, userID string) ([]CreateURL, error) {
+	model := make([]CreateURL, 0)
 
-	return CreateURL{}, fmt.Errorf("id %d have not found", id)
-}
-
-func (md *Models) Set(tx context.Context, model CreateURL) (int, error) {
-	model.ID = md.Counter
-	md.Counter++
-
-	md.Model[model.ID] = model
-
-	return model.ID, nil
-}
-
-func (md *Models) GetByUser(tx context.Context, userID string) ([]CreateURL, error) {
-	arrUsers := make([]CreateURL, 0)
-
-	for _, val := range md.Model {
-		if val.User == userID {
-			arrUsers = append(arrUsers, val)
+	for _, value := range md.Model {
+		if value.User == userID {
+			model = append(model, value)
 		}
 	}
-	if len(arrUsers) == 0 {
-		return nil, fmt.Errorf("arrUsers with user_id %s have not found", userID)
+
+	if len(model) == 0 {
+		return nil, fmt.Errorf("model with user_id %s have not found", userID)
 	}
-	return arrUsers, nil
+
+	return model, nil
+}
+
+func (md *Models) Set(ctx context.Context, createURL CreateURL) (int, error) {
+	createURL.ID = md.Counter
+	md.Counter++
+
+	md.Model[createURL.ID] = createURL
+
+	return createURL.ID, nil
 }
 
 func (md *Models) Close() error {
 	md.ticker.Stop()
 	md.done <- true
-	err := md.UpdateFile()
+	err := md.updateDataFile()
 
 	if err != nil {
 		return err
@@ -148,7 +137,7 @@ func (md *Models) Close() error {
 	return md.File.Close()
 }
 
-func (md *Models) UpdateFile() error {
+func (md *Models) updateDataFile() error {
 	err := md.File.Truncate(0)
 	if err != nil {
 		return err
@@ -159,8 +148,8 @@ func (md *Models) UpdateFile() error {
 		return err
 	}
 
-	for _, val := range md.Model {
-		err := md.WriteCreateURLFile(val)
+	for _, createURL := range md.Model {
+		err := md.writeToFile(createURL)
 
 		if err != nil {
 			return err
@@ -170,8 +159,8 @@ func (md *Models) UpdateFile() error {
 	return nil
 }
 
-func (md *Models) WriteCreateURLFile(createURL CreateURL) error {
-	data, err := json.Marshal(createURL)
+func (md *Models) writeToFile(record CreateURL) error {
+	data, err := json.Marshal(record)
 
 	if err != nil {
 		return err
@@ -183,7 +172,7 @@ func (md *Models) WriteCreateURLFile(createURL CreateURL) error {
 	return err
 }
 
-func (md *Models) APIShortenBatch(ctx context.Context, records []ShortenBatch) ([]ShortenBatch, error) {
+func (md *Models) PutBatch(ctx context.Context, shortBatch []ShortenBatch) ([]ShortenBatch, error) {
 	return nil, fmt.Errorf("method has not implemented")
 }
 

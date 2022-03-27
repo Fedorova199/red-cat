@@ -14,57 +14,35 @@ import (
 	"github.com/jackc/pgerrcode"
 )
 
-type Handler struct {
-	*chi.Mux
-	Storage Storage
-	BaseURL string
-}
-
-func NewHandler(storage Storage, baseURL string, middlewares []Middleware) *Handler {
-	router := &Handler{
-		Mux:     chi.NewMux(),
-		Storage: storage,
-		BaseURL: baseURL,
-	}
-	router.Get("/{id}", Middlewares(router.GETHandler, middlewares))
-	router.Get("/api/user/urls", Middlewares(router.GetUrlsHandler, middlewares))
-	router.Get("/ping", Middlewares(router.PingHandler, middlewares))
-	router.Post("/", Middlewares(router.POSTHandler, middlewares))
-	router.Post("/api/shorten", Middlewares(router.JSONHandler, middlewares))
-	router.Post("/api/shorten/batch", Middlewares(router.PostAPIShortenBatchHandler, middlewares))
-
-	return router
-}
-
-func (h *Handler) POSTHandler(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) PostHandler(w http.ResponseWriter, r *http.Request) {
 	b, err := io.ReadAll(r.Body)
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	idCookie, err := r.Cookie("user_id")
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	url := string(b)
 	id, err := h.Storage.Set(r.Context(), storage.CreateURL{
-		URL:  url,
 		User: idCookie.Value,
+		URL:  url,
 	})
 
 	if err != nil {
 		var pge *pgconn.PgError
 		if errors.As(err, &pge) && pge.Code == pgerrcode.UniqueViolation {
-			url, err := h.Storage.GetByOriginURL(r.Context(), url)
+			createURL, err := h.Storage.GetOriginURL(r.Context(), url)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
-			resultURL := h.BaseURL + "/" + fmt.Sprintf("%d", url.ID)
+			resultURL := h.BaseURL + "/" + fmt.Sprintf("%d", createURL.ID)
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			w.WriteHeader(http.StatusConflict)
 			w.Write([]byte(resultURL))
@@ -78,11 +56,11 @@ func (h *Handler) POSTHandler(w http.ResponseWriter, r *http.Request) {
 	resultURL := h.BaseURL + "/" + fmt.Sprintf("%d", id)
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(201)
+	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(resultURL))
 }
 
-func (h *Handler) GETHandler(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetHandler(w http.ResponseWriter, r *http.Request) {
 	rawID := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(rawID)
 
@@ -91,54 +69,50 @@ func (h *Handler) GETHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createURL, err := h.Storage.Get(r.Context(), id)
+	origin, err := h.Storage.Get(r.Context(), id)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	http.Redirect(w, r, createURL.URL, http.StatusTemporaryRedirect)
-
+	http.Redirect(w, r, origin.URL, http.StatusTemporaryRedirect)
 }
 
 func (h *Handler) JSONHandler(w http.ResponseWriter, r *http.Request) {
 	b, err := io.ReadAll(r.Body)
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	request := Request{}
+	request := storage.Request{}
 	if err := json.Unmarshal(b, &request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	idCookie, err := r.Cookie("user_id")
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	id, err := h.Storage.Set(r.Context(), storage.CreateURL{
-		URL:  request.URL,
 		User: idCookie.Value,
+		URL:  request.URL,
 	})
 
 	if err != nil {
 		var pge *pgconn.PgError
 		if errors.As(err, &pge) && pge.Code == pgerrcode.UniqueViolation {
-			record, err := h.Storage.GetByOriginURL(r.Context(), request.URL)
+			createURL, err := h.Storage.GetOriginURL(r.Context(), request.URL)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
-			res, err := h.formatResult(record.ID)
+			res, err := h.formatResult(createURL.ID)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -165,43 +139,45 @@ func (h *Handler) JSONHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(res)
 }
 
+func (h *Handler) formatResult(id int) ([]byte, error) {
+	resultURL := h.BaseURL + "/" + fmt.Sprintf("%d", id)
+	response := storage.Response{Result: resultURL}
+	return json.Marshal(response)
+}
+
 func (h *Handler) GetUrlsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
 	idCookie, err := r.Cookie("user_id")
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	createURLs, err := h.Storage.GetByUser(r.Context(), idCookie.Value)
-
+	getuser, err := h.Storage.GetUser(r.Context(), idCookie.Value)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if len(createURLs) == 0 {
+	if len(getuser) == 0 {
 		http.Error(w, "Not found", http.StatusNoContent)
 		return
 	}
 
-	var shortenUrls []ShortURLs
-
-	for _, val := range createURLs {
-		shortenUrls = append(shortenUrls, ShortURLs{
-			ShortURL:    h.BaseURL + "/" + fmt.Sprintf("%d", val.ID),
-			OriginalURL: val.URL,
+	var shortenUrls []storage.ShortURLs
+	for _, shortURL := range getuser {
+		shortenUrls = append(shortenUrls, storage.ShortURLs{
+			ShortURL:    h.BaseURL + "/" + fmt.Sprintf("%d", shortURL.ID),
+			OriginalURL: shortURL.URL,
 		})
 	}
 
 	res, err := json.Marshal(shortenUrls)
-
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(res)
 }
@@ -214,14 +190,15 @@ func (h *Handler) PingHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 }
+
 func (h *Handler) PostAPIShortenBatchHandler(w http.ResponseWriter, r *http.Request) {
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	var batchRequests []BatchRequest
+	var batchRequests []storage.BatchRequest
 	if err := json.Unmarshal(b, &batchRequests); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -233,26 +210,26 @@ func (h *Handler) PostAPIShortenBatchHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	var ShortenBatch []storage.ShortenBatch
+	var shortBatch []storage.ShortenBatch
 	for _, batchRequest := range batchRequests {
-		ShortenBatch = append(ShortenBatch, storage.ShortenBatch{
+		shortBatch = append(shortBatch, storage.ShortenBatch{
 			User:          idCookie.Value,
 			URL:           batchRequest.OriginURL,
 			CorrelationID: batchRequest.CorrelationID,
 		})
 	}
 
-	ShortenBatchs, err := h.Storage.APIShortenBatch(r.Context(), ShortenBatch)
+	shortBatch, err = h.Storage.PutBatch(r.Context(), shortBatch)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	var batchResponses []BatchResponse
-	for _, batchResponse := range ShortenBatchs {
-		batchResponses = append(batchResponses, BatchResponse{
-			CorrelationID: batchResponse.CorrelationID,
-			ShortURL:      h.BaseURL + "/" + fmt.Sprintf("%d", batchResponse.ID),
+	var batchResponses []storage.BatchResponse
+	for _, batchresp := range shortBatch {
+		batchResponses = append(batchResponses, storage.BatchResponse{
+			CorrelationID: batchresp.CorrelationID,
+			ShortURL:      h.BaseURL + "/" + fmt.Sprintf("%d", batchresp.ID),
 		})
 	}
 
@@ -263,12 +240,6 @@ func (h *Handler) PostAPIShortenBatchHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(201)
+	w.WriteHeader(http.StatusCreated)
 	w.Write(res)
-}
-
-func (h *Handler) formatResult(id int) ([]byte, error) {
-	resultURL := h.BaseURL + "/" + fmt.Sprintf("%d", id)
-	response := Response{Result: resultURL}
-	return json.Marshal(response)
 }

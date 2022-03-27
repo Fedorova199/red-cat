@@ -12,18 +12,13 @@ type gzipWriter struct {
 	Writer io.Writer
 }
 
-type gzipReader struct {
-	http.Request
-	Reader io.Reader
-}
-
 func (w gzipWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
 }
 
-type GzipHandle struct{}
+type GzipEncoder struct{}
 
-func (g GzipHandle) Handle(next http.HandlerFunc) http.HandlerFunc {
+func (g GzipEncoder) Handle(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 			next.ServeHTTP(w, r)
@@ -42,9 +37,9 @@ func (g GzipHandle) Handle(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-type UngzipHandle struct{}
+type GzipDecoder struct{}
 
-func (g UngzipHandle) Handle(next http.HandlerFunc) http.HandlerFunc {
+func (g GzipDecoder) Handle(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Content-Encoding") != "gzip" {
 			next.ServeHTTP(w, r)

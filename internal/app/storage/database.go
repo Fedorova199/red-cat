@@ -10,21 +10,20 @@ type Database struct {
 }
 
 func CreateDatabase(db *sql.DB) (*Database, error) {
-
-	database := &Database{
+	databaseStorage := &Database{
 		db: db,
 	}
 
-	err := database.init()
+	err := databaseStorage.init()
 	if err != nil {
 		return nil, err
 	}
 
-	return database, nil
+	return databaseStorage, nil
 }
 
 func (s *Database) init() error {
-	_, err := s.db.Exec("CREATE TABLE IF NOT EXISTS url ( id bigserial primary key, user_id varchar(36), origin_url varchar(255) )")
+	_, err := s.db.Exec("CREATE TABLE IF NOT EXISTS url ( id bigserial primary key, user_id varchar(36), origin_url varchar(255), CONSTRAINT origin_url_unique UNIQUE (origin_url) )")
 
 	return err
 }
@@ -41,44 +40,44 @@ func (s *Database) Get(ctx context.Context, id int) (CreateURL, error) {
 	return createURL, nil
 }
 
-func (s *Database) GetByOriginURL(ctx context.Context, originURL string) (CreateURL, error) {
-	var model CreateURL
+func (s *Database) GetOriginURL(ctx context.Context, originURL string) (CreateURL, error) {
+	var createURL CreateURL
 
 	row := s.db.QueryRowContext(ctx, "SELECT id, user_id, origin_url FROM url WHERE origin_url = $1", originURL)
-	err := row.Scan(&model.ID, &model.URL, &model.User)
+	err := row.Scan(&createURL.ID, &createURL.User, &createURL.URL)
 	if err != nil {
 		return CreateURL{}, err
 	}
 
-	return model, nil
+	return createURL, nil
 }
 
-func (s *Database) GetByUser(ctx context.Context, userID string) ([]CreateURL, error) {
-	records := make([]CreateURL, 0)
+func (s *Database) GetUser(ctx context.Context, userID string) ([]CreateURL, error) {
+	rows := make([]CreateURL, 0)
 
-	rows, err := s.db.QueryContext(ctx, "SELECT id, user_id, origin_url FROM url WHERE user_id = $1", userID)
+	r, err := s.db.QueryContext(ctx, "SELECT id, user_id, origin_url FROM url WHERE user_id = $1", userID)
 	if err != nil {
 		return nil, err
 	}
 
-	defer rows.Close()
+	defer r.Close()
 
-	for rows.Next() {
+	for r.Next() {
 		var createURL CreateURL
-		err := rows.Scan(&createURL.ID, &createURL.User, &createURL.URL)
+		err := r.Scan(&createURL.ID, &createURL.User, &createURL.URL)
 		if err != nil {
 			return nil, err
 		}
 
-		records = append(records, createURL)
+		rows = append(rows, createURL)
 	}
 
-	err = rows.Err()
+	err = r.Err()
 	if err != nil {
 		return nil, err
 	}
 
-	return records, nil
+	return rows, nil
 }
 
 func (s *Database) Set(ctx context.Context, createURL CreateURL) (int, error) {
@@ -87,13 +86,13 @@ func (s *Database) Set(ctx context.Context, createURL CreateURL) (int, error) {
 	sqlStatement := "INSERT INTO url (user_id, origin_url) VALUES ($1, $2) RETURNING id"
 	err := s.db.QueryRowContext(ctx, sqlStatement, createURL.User, createURL.URL).Scan(&id)
 	if err != nil {
-		return 0, err
+		return id, err
 	}
 
 	return id, nil
 }
 
-func (s *Database) APIShortenBatch(ctx context.Context, models []ShortenBatch) ([]ShortenBatch, error) {
+func (s *Database) PutBatch(ctx context.Context, shortBatch []ShortenBatch) ([]ShortenBatch, error) {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return nil, err
@@ -107,8 +106,8 @@ func (s *Database) APIShortenBatch(ctx context.Context, models []ShortenBatch) (
 	}
 	defer stmt.Close()
 
-	for id := range models {
-		err = stmt.QueryRowContext(ctx, models[id].User, models[id].URL).Scan(&models[id].ID)
+	for id := range shortBatch {
+		err = stmt.QueryRowContext(ctx, shortBatch[id].User, shortBatch[id].URL).Scan(&shortBatch[id].ID)
 		if err != nil {
 			return nil, err
 		}
@@ -118,7 +117,7 @@ func (s *Database) APIShortenBatch(ctx context.Context, models []ShortenBatch) (
 		return nil, err
 	}
 
-	return models, nil
+	return shortBatch, nil
 }
 
 func (s *Database) Ping(ctx context.Context) error {
