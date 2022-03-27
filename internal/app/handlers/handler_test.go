@@ -93,7 +93,7 @@ func TestHandler_POSTHandler(t *testing.T) {
 				middlewares.GzipHandle{},
 				middlewares.UngzipHandle{},
 				middlewares.NewAuthenticator([]byte("secret key")),
-			})
+			}, nil)
 			ts := httptest.NewServer(handler)
 			defer ts.Close()
 
@@ -207,7 +207,7 @@ func TestHandler_GETHandler(t *testing.T) {
 				middlewares.GzipHandle{},
 				middlewares.UngzipHandle{},
 				middlewares.NewAuthenticator([]byte("secret key")),
-			})
+			}, nil)
 			ts := httptest.NewServer(handler)
 			defer ts.Close()
 
@@ -325,7 +325,7 @@ func TestHandler_JSONHandler(t *testing.T) {
 				middlewares.GzipHandle{},
 				middlewares.UngzipHandle{},
 				middlewares.NewAuthenticator([]byte("secret key")),
-			})
+			}, nil)
 			ts := httptest.NewServer(handler)
 			defer ts.Close()
 
@@ -358,7 +358,7 @@ func TestNewHandler(t *testing.T) {
 	handler := NewHandler(storage, "test.ru", []Middleware{
 		middlewares.GzipHandle{},
 		middlewares.UngzipHandle{},
-	})
+	}, nil)
 	assert.Implements(t, (*http.Handler)(nil), handler)
 }
 

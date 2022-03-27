@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
 	"os"
@@ -17,6 +18,11 @@ import (
 func main() {
 	cfg, _ := config.NewConfig()
 
+	db, err := sql.Open("pgx", cfg.DatabaseDSN)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
 	storage, err := storage.NewModels(cfg.FileStoragePath, 1)
 	if err != nil {
 		log.Fatal(err)
@@ -26,7 +32,7 @@ func main() {
 		middlewares.UngzipHandle{},
 		middlewares.NewAuthenticator([]byte("secret key")),
 	}
-	handler := handlers.NewHandler(storage, cfg.BaseURL, ms)
+	handler := handlers.NewHandler(storage, cfg.BaseURL, ms, db)
 	server := &http.Server{
 		Addr:    cfg.ServerAddress,
 		Handler: handler,

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,27 +16,19 @@ type Handler struct {
 	*chi.Mux
 	Storage storage.Storage
 	BaseURL string
+	DB      *sql.DB
 }
 
-type Middleware interface {
-	Handle(next http.HandlerFunc) http.HandlerFunc
-}
-
-func Middlewares(handler http.HandlerFunc, middlewares []Middleware) http.HandlerFunc {
-	for _, middleware := range middlewares {
-		handler = middleware.Handle(handler)
-	}
-
-	return handler
-}
-func NewHandler(storage storage.Storage, baseURL string, middlewares []Middleware) *Handler {
+func NewHandler(storage storage.Storage, baseURL string, middlewares []Middleware, db *sql.DB) *Handler {
 	router := &Handler{
 		Mux:     chi.NewMux(),
 		Storage: storage,
 		BaseURL: baseURL,
+		DB:      db,
 	}
 	router.Get("/{id}", Middlewares(router.GETHandler, middlewares))
 	router.Get("/api/user/urls", Middlewares(router.GetUrlsHandler, middlewares))
+	router.Get("/ping", Middlewares(router.PingHandler, middlewares))
 	router.Post("/", Middlewares(router.POSTHandler, middlewares))
 	router.Post("/api/shorten", Middlewares(router.JSONHandler, middlewares))
 
@@ -168,4 +161,13 @@ func (h *Handler) GetUrlsHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(200)
 	w.Write(res)
+}
+
+func (h *Handler) PingHandler(w http.ResponseWriter, r *http.Request) {
+	if err := h.DB.Ping(); err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	w.WriteHeader(200)
 }
