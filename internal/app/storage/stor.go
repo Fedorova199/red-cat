@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,9 +11,9 @@ import (
 )
 
 type Storage interface {
-	Get(id int) (CreateURL, error)
-	Set(user, url string) (int, error)
-	GetByUser(userID string) ([]CreateURL, error)
+	Get(tx context.Context, id int) (CreateURL, error)
+	Set(tx context.Context, model CreateURL) (int, error)
+	GetByUser(tx context.Context, userID string) ([]CreateURL, error)
 }
 
 type Models struct {
@@ -93,28 +94,24 @@ func (md *Models) synchronize() {
 	}
 }
 
-func (md *Models) Get(id int) (CreateURL, error) {
-	if url, ok := md.Model[id]; ok {
-		return url, nil
+func (md *Models) Get(tx context.Context, id int) (CreateURL, error) {
+	if model, ok := md.Model[id]; ok {
+		return model, nil
 	}
 
 	return CreateURL{}, fmt.Errorf("id %d have not found", id)
 }
 
-func (md *Models) Set(user, url string) (int, error) {
-	id := md.Counter
+func (md *Models) Set(tx context.Context, model CreateURL) (int, error) {
+	model.ID = md.Counter
 	md.Counter++
 
-	md.Model[id] = CreateURL{
-		ID:   id,
-		User: user,
-		URL:  url,
-	}
+	md.Model[model.ID] = model
 
-	return id, nil
+	return model.ID, nil
 }
 
-func (md *Models) GetByUser(userID string) ([]CreateURL, error) {
+func (md *Models) GetByUser(tx context.Context, userID string) ([]CreateURL, error) {
 	arrUsers := make([]CreateURL, 0)
 
 	for _, val := range md.Model {
