@@ -10,25 +10,25 @@ import (
 	"github.com/google/uuid"
 )
 
-type Authenticator struct {
-	secret []byte
+type Auth struct {
+	secretKey []byte
 }
 
-func NewAuthenticator(secret []byte) *Authenticator {
-	return &Authenticator{secret: secret}
+func NewAuth(secret []byte) *Auth {
+	return &Auth{secretKey: secret}
 }
 
-func (a Authenticator) Handle(next http.HandlerFunc) http.HandlerFunc {
+func (a Auth) Handle(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userCookie, userErr := r.Cookie("user_id")
+		idCookie, userErr := r.Cookie("user_id")
 		signCookie, signErr := r.Cookie("sign")
 
 		if userErr != nil || signErr != nil {
 			newUserID, sign, _ := a.generateUserID()
 			a.setCookies(w, r, newUserID, sign)
 		} else {
-			h := hmac.New(sha256.New, a.secret)
-			h.Write([]byte(userCookie.Value))
+			h := hmac.New(sha256.New, a.secretKey)
+			h.Write([]byte(idCookie.Value))
 			calculatedSign := h.Sum(nil)
 			sign, err := hex.DecodeString(signCookie.Value)
 			if err != nil {
@@ -46,10 +46,10 @@ func (a Authenticator) Handle(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func (a Authenticator) generateUserID() (string, string, error) {
+func (a Auth) generateUserID() (string, string, error) {
 	newUserID := uuid.New().String()
 
-	h := hmac.New(sha256.New, a.secret)
+	h := hmac.New(sha256.New, a.secretKey)
 	_, err := h.Write([]byte(newUserID))
 
 	if err != nil {
@@ -61,7 +61,7 @@ func (a Authenticator) generateUserID() (string, string, error) {
 	return newUserID, hex.EncodeToString(sign), nil
 }
 
-func (a Authenticator) setCookies(w http.ResponseWriter, r *http.Request, userID, sign string) {
+func (a Auth) setCookies(w http.ResponseWriter, r *http.Request, userID, sign string) {
 	userIDCookie := &http.Cookie{
 		Name:  "user_id",
 		Value: userID,

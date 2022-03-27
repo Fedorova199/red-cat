@@ -10,32 +10,33 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Fedorova199/red-cat/internal/app/interfaces"
 	"github.com/Fedorova199/red-cat/internal/app/middlewares"
-	"github.com/Fedorova199/red-cat/internal/app/storages"
+	"github.com/Fedorova199/red-cat/internal/app/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNewHandler(t *testing.T) {
-	storage := &storages.SimpleStorage{
-		Start: 1002,
-		Records: map[uint64]storages.Record{
-			1000: {
-				ID:   1000,
+	storage := &storage.Models{
+		Counter: 3,
+		Model: map[int]storage.CreateURL{
+			1: {
+				ID:   1,
 				User: "user",
 				URL:  "test1.ru",
 			},
-			1001: {
-				ID:   1001,
+			2: {
+				ID:   2,
 				User: "user",
 				URL:  "test2.ru",
 			},
 		},
 	}
-	handler := NewHandler(storage, "test.ru", []Middleware{
+	handler := NewHandler(storage, "test.ru", []interfaces.Middleware{
 		middlewares.GzipEncoder{},
 		middlewares.GzipDecoder{},
-		middlewares.NewAuthenticator([]byte("secret key")),
+		middlewares.NewAuth([]byte("secret key")),
 	})
 	assert.Implements(t, (*http.Handler)(nil), handler)
 }
@@ -61,7 +62,7 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, body io
 }
 
 func TestHandler_ShortenUrl(t *testing.T) {
-	file, err := ioutil.TempFile("", "db")
+	file, err := ioutil.TempFile("", "test")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -76,21 +77,21 @@ func TestHandler_ShortenUrl(t *testing.T) {
 		name    string
 		path    string
 		body    string
-		storage Storage
+		storage interfaces.Storage
 		want    want
 	}{
 		{
 			name: "simple test #1",
-			storage: &storages.SimpleStorage{
-				Start: 1002,
-				Records: map[uint64]storages.Record{
-					1000: {
-						ID:   1000,
+			storage: &storage.Models{
+				Counter: 3,
+				Model: map[int]storage.CreateURL{
+					1: {
+						ID:   1,
 						User: "user",
 						URL:  "test1.ru",
 					},
-					1001: {
-						ID:   1001,
+					2: {
+						ID:   2,
 						User: "user",
 						URL:  "test2.ru",
 					},
@@ -100,23 +101,23 @@ func TestHandler_ShortenUrl(t *testing.T) {
 			want: want{
 				contentType: "text/plain; charset=utf-8",
 				statusCode:  201,
-				id:          "1002",
+				id:          "3",
 			},
 			path: "/",
 			body: "test1.ru",
 		},
 		{
 			name: "empty body #2",
-			storage: &storages.SimpleStorage{
-				Start: 1002,
-				Records: map[uint64]storages.Record{
-					1000: {
-						ID:   1000,
+			storage: &storage.Models{
+				Counter: 3,
+				Model: map[int]storage.CreateURL{
+					1: {
+						ID:   1,
 						User: "user",
 						URL:  "test1.ru",
 					},
-					1001: {
-						ID:   1001,
+					2: {
+						ID:   2,
 						User: "user",
 						URL:  "test2.ru",
 					},
@@ -126,7 +127,7 @@ func TestHandler_ShortenUrl(t *testing.T) {
 			want: want{
 				contentType: "text/plain; charset=utf-8",
 				statusCode:  201,
-				id:          "1002",
+				id:          "3",
 			},
 			path: "/",
 			body: "",
@@ -134,10 +135,10 @@ func TestHandler_ShortenUrl(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler := NewHandler(tt.storage, "test.ru", []Middleware{
+			handler := NewHandler(tt.storage, "test.ru", []interfaces.Middleware{
 				middlewares.GzipEncoder{},
 				middlewares.GzipDecoder{},
-				middlewares.NewAuthenticator([]byte("secret key")),
+				middlewares.NewAuth([]byte("secret key")),
 			})
 			ts := httptest.NewServer(handler)
 			defer ts.Close()
@@ -153,7 +154,7 @@ func TestHandler_ShortenUrl(t *testing.T) {
 }
 
 func TestHandler_GetOriginalUrl(t *testing.T) {
-	file, err := ioutil.TempFile("", "db")
+	file, err := ioutil.TempFile("", "test")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -167,21 +168,21 @@ func TestHandler_GetOriginalUrl(t *testing.T) {
 	tests := []struct {
 		name    string
 		path    string
-		storage Storage
+		storage interfaces.Storage
 		want    want
 	}{
 		{
 			name: "simple test #1",
-			storage: &storages.SimpleStorage{
-				Start: 1002,
-				Records: map[uint64]storages.Record{
-					1000: {
-						ID:   1000,
+			storage: &storage.Models{
+				Counter: 3,
+				Model: map[int]storage.CreateURL{
+					1: {
+						ID:   1,
 						User: "user",
 						URL:  "test1.ru",
 					},
-					1001: {
-						ID:   1001,
+					2: {
+						ID:   2,
 						User: "user",
 						URL:  "test2.ru",
 					},
@@ -193,20 +194,20 @@ func TestHandler_GetOriginalUrl(t *testing.T) {
 				statusCode:  307,
 				redirectURL: "test2.ru",
 			},
-			path: "/1001",
+			path: "/2",
 		},
 		{
 			name: "wrong id #2",
-			storage: &storages.SimpleStorage{
-				Start: 1002,
-				Records: map[uint64]storages.Record{
-					1000: {
-						ID:   1000,
+			storage: &storage.Models{
+				Counter: 3,
+				Model: map[int]storage.CreateURL{
+					1: {
+						ID:   1,
 						User: "user",
 						URL:  "test1.ru",
 					},
-					1001: {
-						ID:   1001,
+					2: {
+						ID:   2,
 						User: "user",
 						URL:  "test2.ru",
 					},
@@ -218,20 +219,20 @@ func TestHandler_GetOriginalUrl(t *testing.T) {
 				statusCode:  404,
 				redirectURL: "",
 			},
-			path: "/1009",
+			path: "/9",
 		},
 		{
 			name: "empty id #3",
-			storage: &storages.SimpleStorage{
-				Start: 1002,
-				Records: map[uint64]storages.Record{
-					1000: {
-						ID:   1000,
+			storage: &storage.Models{
+				Counter: 3,
+				Model: map[int]storage.CreateURL{
+					1: {
+						ID:   1,
 						User: "user",
 						URL:  "test1.ru",
 					},
-					1001: {
-						ID:   1001,
+					2: {
+						ID:   2,
 						User: "user",
 						URL:  "test2.ru",
 					},
@@ -248,10 +249,10 @@ func TestHandler_GetOriginalUrl(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler := NewHandler(tt.storage, "test.ru", []Middleware{
+			handler := NewHandler(tt.storage, "test.ru", []interfaces.Middleware{
 				middlewares.GzipEncoder{},
 				middlewares.GzipDecoder{},
-				middlewares.NewAuthenticator([]byte("secret key")),
+				middlewares.NewAuth([]byte("secret key")),
 			})
 			ts := httptest.NewServer(handler)
 			defer ts.Close()
@@ -267,7 +268,7 @@ func TestHandler_GetOriginalUrl(t *testing.T) {
 }
 
 func TestHandler_ApiShortenUrl(t *testing.T) {
-	file, err := ioutil.TempFile("", "db")
+	file, err := ioutil.TempFile("", "test")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -282,21 +283,21 @@ func TestHandler_ApiShortenUrl(t *testing.T) {
 		name    string
 		path    string
 		body    string
-		storage Storage
+		storage interfaces.Storage
 		want    want
 	}{
 		{
 			name: "simple test #1",
-			storage: &storages.SimpleStorage{
-				Start: 1002,
-				Records: map[uint64]storages.Record{
-					1000: {
-						ID:   1000,
+			storage: &storage.Models{
+				Counter: 3,
+				Model: map[int]storage.CreateURL{
+					1: {
+						ID:   1,
 						User: "user",
 						URL:  "test1.ru",
 					},
-					1001: {
-						ID:   1001,
+					2: {
+						ID:   2,
 						User: "user",
 						URL:  "test2.ru",
 					},
@@ -306,23 +307,23 @@ func TestHandler_ApiShortenUrl(t *testing.T) {
 			want: want{
 				contentType: "application/json",
 				statusCode:  201,
-				id:          "1002",
+				id:          "3",
 			},
 			path: "/api/shorten",
 			body: "{\"url\": \"test1.ru\"}",
 		},
 		{
 			name: "empty json #2",
-			storage: &storages.SimpleStorage{
-				Start: 1002,
-				Records: map[uint64]storages.Record{
-					1000: {
-						ID:   1000,
+			storage: &storage.Models{
+				Counter: 3,
+				Model: map[int]storage.CreateURL{
+					1: {
+						ID:   1,
 						User: "user",
 						URL:  "test1.ru",
 					},
-					1001: {
-						ID:   1001,
+					2: {
+						ID:   2,
 						User: "user",
 						URL:  "test2.ru",
 					},
@@ -332,23 +333,23 @@ func TestHandler_ApiShortenUrl(t *testing.T) {
 			want: want{
 				contentType: "application/json",
 				statusCode:  201,
-				id:          "1002",
+				id:          "3",
 			},
 			path: "/api/shorten",
 			body: "{}",
 		},
 		{
 			name: "wrong json #3",
-			storage: &storages.SimpleStorage{
-				Start: 1002,
-				Records: map[uint64]storages.Record{
-					1000: {
-						ID:   1000,
+			storage: &storage.Models{
+				Counter: 3,
+				Model: map[int]storage.CreateURL{
+					1: {
+						ID:   1,
 						User: "user",
 						URL:  "test1.ru",
 					},
-					1001: {
-						ID:   1001,
+					2: {
+						ID:   2,
 						User: "user",
 						URL:  "test2.ru",
 					},
@@ -366,10 +367,10 @@ func TestHandler_ApiShortenUrl(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler := NewHandler(tt.storage, "test.ru", []Middleware{
+			handler := NewHandler(tt.storage, "test.ru", []interfaces.Middleware{
 				middlewares.GzipEncoder{},
 				middlewares.GzipDecoder{},
-				middlewares.NewAuthenticator([]byte("secret key")),
+				middlewares.NewAuth([]byte("secret key")),
 			})
 			ts := httptest.NewServer(handler)
 			defer ts.Close()
