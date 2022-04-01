@@ -162,7 +162,6 @@ func (h *Handler) GetUrlsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Not found", http.StatusNoContent)
 		return
 	}
-	fmt.Println("created", len(createdURLs))
 
 	shortenUrls := make([]storage.ShortURLs, 0, len(createdURLs))
 
@@ -172,7 +171,7 @@ func (h *Handler) GetUrlsHandler(w http.ResponseWriter, r *http.Request) {
 			OriginalURL: shortURL.URL,
 		})
 	}
-	fmt.Println("shortenUrls", len(shortenUrls))
+
 	res, err := json.Marshal(shortenUrls)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -212,8 +211,7 @@ func (h *Handler) PostAPIShortenBatchHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	shortBatch := []storage.ShortenBatch{}
-
+	shortBatch := make([]storage.ShortenBatch, 0, len(batchRequests))
 	for _, batchRequest := range batchRequests {
 		shortBatch = append(shortBatch, storage.ShortenBatch{
 			User:          idCookie.Value,
