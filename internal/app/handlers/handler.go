@@ -162,7 +162,7 @@ func (h *Handler) GetUrlsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Not found", http.StatusNoContent)
 		return
 	}
-
+	fmt.Println("created", len(createdURLs))
 	shortenUrls := []storage.ShortURLs{}
 
 	for _, shortURL := range createdURLs {
@@ -171,7 +171,7 @@ func (h *Handler) GetUrlsHandler(w http.ResponseWriter, r *http.Request) {
 			OriginalURL: shortURL.URL,
 		})
 	}
-
+	fmt.Println("created", len(shortenUrls))
 	res, err := json.Marshal(shortenUrls)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
