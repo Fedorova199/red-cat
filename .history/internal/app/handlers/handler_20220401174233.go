@@ -211,7 +211,7 @@ func (h *Handler) PostAPIShortenBatchHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	shortBatch := []storage.ShortenBatch{}
+	shortBatch := make([]storage.ShortenBatch, len(batchRequests))
 
 	for _, batchRequest := range batchRequests {
 		shortBatch = append(shortBatch, storage.ShortenBatch{
