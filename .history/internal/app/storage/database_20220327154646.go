@@ -97,12 +97,7 @@ func (s *Database) PutBatch(ctx context.Context, shortBatch []ShortenBatch) ([]S
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-			return
-		}
-	}()
+	defer tx.Rollback()
 
 	sqlStatement := "INSERT INTO url (user_id, origin_url) VALUES ($1, $2) RETURNING id"
 	stmt, err := tx.PrepareContext(ctx, sqlStatement)

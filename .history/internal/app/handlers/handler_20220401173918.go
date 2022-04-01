@@ -164,7 +164,7 @@ func (h *Handler) GetUrlsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	shortenUrls := make([]storage.ShortURLs, len(createdURLs))
-
+	//var shortenUrls []storage.ShortURLs
 	for _, shortURL := range createdURLs {
 		shortenUrls = append(shortenUrls, storage.ShortURLs{
 			ShortURL:    h.BaseURL + "/" + fmt.Sprintf("%d", shortURL.ID),
@@ -212,7 +212,7 @@ func (h *Handler) PostAPIShortenBatchHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	shortBatch := make([]storage.ShortenBatch, len(batchRequests))
-
+	//var shortBatch []storage.ShortenBatch
 	for _, batchRequest := range batchRequests {
 		shortBatch = append(shortBatch, storage.ShortenBatch{
 			User:          idCookie.Value,
@@ -228,7 +228,7 @@ func (h *Handler) PostAPIShortenBatchHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	batchResponses := make([]storage.BatchResponse, len(shortBatch))
-
+	//var batchResponses []storage.BatchResponse
 	for _, batchresp := range shortBatch {
 		batchResponses = append(batchResponses, storage.BatchResponse{
 			CorrelationID: batchresp.CorrelationID,
