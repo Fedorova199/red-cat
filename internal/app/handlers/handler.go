@@ -163,7 +163,7 @@ func (h *Handler) GetUrlsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shortenUrls := make([]storage.ShortURLs, len(createdURLs))
+	shortenUrls := []storage.ShortURLs{}
 
 	for _, shortURL := range createdURLs {
 		shortenUrls = append(shortenUrls, storage.ShortURLs{
