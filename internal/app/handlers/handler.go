@@ -163,7 +163,8 @@ func (h *Handler) GetUrlsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Println("created", len(createdURLs))
-	shortenUrls := []storage.ShortURLs{}
+
+	shortenUrls := make([]storage.ShortURLs, 0, len(createdURLs))
 
 	for _, shortURL := range createdURLs {
 		shortenUrls = append(shortenUrls, storage.ShortURLs{
@@ -171,7 +172,7 @@ func (h *Handler) GetUrlsHandler(w http.ResponseWriter, r *http.Request) {
 			OriginalURL: shortURL.URL,
 		})
 	}
-	fmt.Println("created", len(shortenUrls))
+	fmt.Println("shortenUrls", len(shortenUrls))
 	res, err := json.Marshal(shortenUrls)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -227,7 +228,7 @@ func (h *Handler) PostAPIShortenBatchHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	batchResponses := make([]storage.BatchResponse, len(shortBatch))
+	batchResponses := make([]storage.BatchResponse, 0, len(shortBatch))
 
 	for _, batchresp := range shortBatch {
 		batchResponses = append(batchResponses, storage.BatchResponse{
