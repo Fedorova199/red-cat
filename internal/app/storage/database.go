@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -10,6 +11,8 @@ import (
 type Database struct {
 	db *sql.DB
 }
+
+var ErrDeleted = errors.New("deleted")
 
 func CreateDatabase(db *sql.DB) (*Database, error) {
 	databaseStorage := &Database{
@@ -40,7 +43,7 @@ func (s *Database) Get(ctx context.Context, id int) (CreateURL, error) {
 	}
 
 	if deleted {
-		return CreateURL{}, fmt.Errorf("delete")
+		return CreateURL{}, ErrDeleted
 	}
 
 	return createURL, nil

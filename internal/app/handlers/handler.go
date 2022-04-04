@@ -72,10 +72,10 @@ func (h *Handler) GetHandler(w http.ResponseWriter, r *http.Request) {
 
 	origin, err := h.Storage.Get(r.Context(), id)
 	if err != nil {
-
-		http.Error(w, err.Error(), http.StatusGone)
-		return
-
+		if errors.Is(storage.ErrDeleted, err) {
+			http.Error(w, err.Error(), http.StatusGone)
+			return
+		}
 	}
 
 	if err != nil {
