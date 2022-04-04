@@ -26,6 +26,7 @@ func NewHandler(storage interfaces.Storage, baseURL string, middlewares []interf
 	router.Post("/", Middlewares(router.PostHandler, middlewares))
 	router.Post("/api/shorten", Middlewares(router.JSONHandler, middlewares))
 	router.Post("/api/shorten/batch", Middlewares(router.PostAPIShortenBatchHandler, middlewares))
+	router.Delete("/api/user/urls", Middlewares(router.DeleteUrls, middlewares))
 
 	return router
 }

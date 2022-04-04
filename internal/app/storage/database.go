@@ -3,6 +3,8 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"strings"
 )
 
 type Database struct {
@@ -23,18 +25,22 @@ func CreateDatabase(db *sql.DB) (*Database, error) {
 }
 
 func (s *Database) init() error {
-	_, err := s.db.Exec("CREATE TABLE IF NOT EXISTS url ( id bigserial primary key, user_id varchar(36), origin_url varchar(255), CONSTRAINT origin_url_unique UNIQUE (origin_url) )")
+	_, err := s.db.Exec("CREATE TABLE IF NOT EXISTS url ( id bigserial primary key, user_id varchar(36), origin_url varchar(255),deleted boolean default false, CONSTRAINT origin_url_unique UNIQUE (origin_url) )")
 
 	return err
 }
 
 func (s *Database) Get(ctx context.Context, id int) (CreateURL, error) {
 	var createURL CreateURL
-
-	row := s.db.QueryRowContext(ctx, "SELECT id, user_id, origin_url FROM url WHERE id = $1", id)
-	err := row.Scan(&createURL.ID, &createURL.User, &createURL.URL)
+	var deleted bool
+	row := s.db.QueryRowContext(ctx, "SELECT id, user_id, origin_url, deleted FROM url WHERE id = $1", id)
+	err := row.Scan(&createURL.ID, &createURL.User, &createURL.URL, &deleted)
 	if err != nil {
 		return CreateURL{}, err
+	}
+
+	if deleted {
+		return CreateURL{}, fmt.Errorf("delete")
 	}
 
 	return createURL, nil
@@ -43,7 +49,7 @@ func (s *Database) Get(ctx context.Context, id int) (CreateURL, error) {
 func (s *Database) GetOriginURL(ctx context.Context, originURL string) (CreateURL, error) {
 	var createURL CreateURL
 
-	row := s.db.QueryRowContext(ctx, "SELECT id, user_id, origin_url FROM url WHERE origin_url = $1", originURL)
+	row := s.db.QueryRowContext(ctx, "SELECT id, user_id, origin_url FROM url WHERE origin_url = $1 AND deleted = false", originURL)
 	err := row.Scan(&createURL.ID, &createURL.User, &createURL.URL)
 	if err != nil {
 		return CreateURL{}, err
@@ -55,7 +61,7 @@ func (s *Database) GetOriginURL(ctx context.Context, originURL string) (CreateUR
 func (s *Database) GetUser(ctx context.Context, userID string) ([]CreateURL, error) {
 	rows := make([]CreateURL, 0)
 
-	r, err := s.db.QueryContext(ctx, "SELECT id, user_id, origin_url FROM url WHERE user_id = $1", userID)
+	r, err := s.db.QueryContext(ctx, "SELECT id, user_id, origin_url FROM url WHERE user_id = $1 AND deleted = false", userID)
 	if err != nil {
 		return nil, err
 	}
@@ -127,4 +133,20 @@ func (s *Database) PutBatch(ctx context.Context, shortBatch []ShortenBatch) ([]S
 
 func (s *Database) Ping(ctx context.Context) error {
 	return s.db.PingContext(ctx)
+}
+
+func (s *Database) DeleteBatch(ctx context.Context, ids []int) error {
+	var strIds []string
+	for _, id := range ids {
+		strIds = append(strIds, fmt.Sprintf("%d", id))
+	}
+
+	if len(strIds) == 0 {
+		return nil
+	}
+
+	stmt := fmt.Sprintf("UPDATE url set deleted = true WHERE id IN (%s)", strings.Join(strIds, ","))
+	_, err := s.db.Exec(stmt)
+
+	return err
 }

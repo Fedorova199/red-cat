@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"sync"
 
 	"github.com/Fedorova199/red-cat/internal/app/storage"
 	"github.com/go-chi/chi/v5"
@@ -70,6 +71,12 @@ func (h *Handler) GetHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	origin, err := h.Storage.Get(r.Context(), id)
+	if err != nil {
+
+		http.Error(w, err.Error(), http.StatusGone)
+		return
+
+	}
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -244,4 +251,68 @@ func (h *Handler) PostAPIShortenBatchHandler(w http.ResponseWriter, r *http.Requ
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	w.Write(res)
+}
+
+func (h *Handler) DeleteUrls(w http.ResponseWriter, r *http.Request) {
+	b, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var deleteIDs []string
+	if err := json.Unmarshal(b, &deleteIDs); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var ids []int
+	for _, deleteID := range deleteIDs {
+		id, err := strconv.Atoi(deleteID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		ids = append(ids, id)
+	}
+
+	idCookie, err := r.Cookie("user_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	outCh := make(chan int)
+
+	go func() {
+		var idsToDelete []int
+		for id := range outCh {
+			idsToDelete = append(idsToDelete, id)
+		}
+		err = h.Storage.DeleteBatch(r.Context(), idsToDelete)
+		if err != nil {
+			return
+		}
+	}()
+
+	wg := &sync.WaitGroup{}
+	for _, id := range ids {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			record, err := h.Storage.Get(r.Context(), id)
+			if err != nil {
+				return
+			}
+
+			if record.User == idCookie.Value {
+				outCh <- id
+			}
+		}(id)
+	}
+
+	w.WriteHeader(http.StatusAccepted)
+	wg.Wait()
+	close(outCh)
 }

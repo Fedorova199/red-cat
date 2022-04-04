@@ -159,8 +159,8 @@ func (md *Models) updateDataFile() error {
 	return nil
 }
 
-func (md *Models) writeToFile(record CreateURL) error {
-	data, err := json.Marshal(record)
+func (md *Models) writeToFile(createURL CreateURL) error {
+	data, err := json.Marshal(createURL)
 
 	if err != nil {
 		return err
@@ -177,5 +177,9 @@ func (md *Models) PutBatch(ctx context.Context, shortBatch []ShortenBatch) ([]Sh
 }
 
 func (md *Models) Ping(ctx context.Context) error {
-	return nil
+	return fmt.Errorf("method has not implemented")
+}
+
+func (md *Models) DeleteBatch(ctx context.Context, id []int) error {
+	return fmt.Errorf("method has not implemented")
 }
