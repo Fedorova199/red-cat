@@ -61,7 +61,7 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, body io
 	return resp, string(respBody)
 }
 
-func TestHandler_ShortenUrl(t *testing.T) {
+func TestHandler_PostHandler(t *testing.T) {
 	file, err := ioutil.TempFile("", "test")
 	if err != nil {
 		log.Fatal(err)
@@ -153,7 +153,7 @@ func TestHandler_ShortenUrl(t *testing.T) {
 	}
 }
 
-func TestHandler_GetOriginalUrl(t *testing.T) {
+func TestHandler_GetHandler(t *testing.T) {
 	file, err := ioutil.TempFile("", "test")
 	if err != nil {
 		log.Fatal(err)
@@ -267,7 +267,7 @@ func TestHandler_GetOriginalUrl(t *testing.T) {
 	}
 }
 
-func TestHandler_ApiShortenUrl(t *testing.T) {
+func TestHandler_JSONHandler(t *testing.T) {
 	file, err := ioutil.TempFile("", "test")
 	if err != nil {
 		log.Fatal(err)

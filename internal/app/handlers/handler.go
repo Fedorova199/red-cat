@@ -253,7 +253,7 @@ func (h *Handler) PostAPIShortenBatchHandler(w http.ResponseWriter, r *http.Requ
 	w.Write(res)
 }
 
-func (h *Handler) DeleteUrls(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) DeleteUrlsHandler(w http.ResponseWriter, r *http.Request) {
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
