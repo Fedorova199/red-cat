@@ -290,7 +290,7 @@ func (h *Handler) DeleteUrlsHandler(w http.ResponseWriter, r *http.Request) {
 		for id := range outCh {
 			idsToDelete = append(idsToDelete, id)
 		}
-		err = h.Storage.DeleteBatch(r.Context(), idsToDelete)
+		err = h.Storage.DeleteURLs(r.Context(), idsToDelete)
 		if err != nil {
 			return
 		}

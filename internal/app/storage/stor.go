@@ -180,6 +180,6 @@ func (md *Models) Ping(ctx context.Context) error {
 	return fmt.Errorf("method has not implemented")
 }
 
-func (md *Models) DeleteBatch(ctx context.Context, id []int) error {
+func (md *Models) DeleteURLs(ctx context.Context, id []int) error {
 	return fmt.Errorf("method has not implemented")
 }

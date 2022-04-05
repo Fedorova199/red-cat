@@ -138,7 +138,7 @@ func (s *Database) Ping(ctx context.Context) error {
 	return s.db.PingContext(ctx)
 }
 
-func (s *Database) DeleteBatch(ctx context.Context, ids []int) error {
+func (s *Database) DeleteURLs(ctx context.Context, ids []int) error {
 	var strIds []string
 	for _, id := range ids {
 		strIds = append(strIds, fmt.Sprintf("%d", id))
