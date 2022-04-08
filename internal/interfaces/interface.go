@@ -14,6 +14,7 @@ type Storage interface {
 	Set(ctx context.Context, createURL storage.CreateURL) (int, error)
 	PutBatch(ctx context.Context, shortBatch []storage.ShortenBatch) ([]storage.ShortenBatch, error)
 	Ping(ctx context.Context) error
+	DeleteURLs(ctx context.Context, ids []int) error
 }
 
 type Middleware interface {

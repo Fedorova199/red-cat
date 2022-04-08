@@ -266,7 +266,7 @@ func (h *Handler) DeleteUrlsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ids := make([]int, 0, len(deleteIDs))
+	var ids []int
 	for _, deleteID := range deleteIDs {
 		id, err := strconv.Atoi(deleteID)
 		if err != nil {
